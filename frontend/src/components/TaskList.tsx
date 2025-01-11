@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Task, Category } from "../types/types";
-import { getAllTasks, editTask, deleteTask, getTasksWithFilters } from "../services/taskService";
+import { editTask, deleteTask, getTasksWithFilters } from "../services/taskService";
 import { getAllCategories } from "../services/categoryService";
 import TaskForm from "./TaskForm";
 
@@ -13,67 +13,60 @@ const TaskList = () => {
     const [selectedCompletion, setSelectedCompletion] = useState<string>("");
 
     useEffect(() => {
-        loadTasks();
+        const applyFilters = async () => {
+            try {
+                const categoryFilter = selectedCategory === "" ? undefined : Number(selectedCategory);
+                const completionFilter = selectedCompletion === "" ? undefined : selectedCompletion === "true";
+    
+                const filteredTasks = await getTasksWithFilters(categoryFilter, completionFilter);
+                setTasks(filteredTasks.data);
+            } catch (error) {
+                console.error("Error filtering tasks:", error);
+            }
+        };
+    
+        applyFilters();
+    }, [selectedCategory, selectedCompletion]);
+    
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const response = await getAllCategories();
+                setCategories(response.data);
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+            }
+        };
+    
         loadCategories();
     }, []);
 
-    const loadTasks = async () => {
+    const loadTasksFiltered = async () => {
         try {
-            const response = await getAllTasks();
+            const categoryFilter = selectedCategory === "" ? undefined : Number(selectedCategory);
+            const completionFilter = selectedCompletion === "" ? undefined : selectedCompletion === "true";
+            const response = await getTasksWithFilters(categoryFilter, completionFilter);
             setTasks(response.data);
         } catch (error) {
             console.error("Error fetching tasks:", error);
         }
-    };
-
-    const loadCategories = async () => {
-        try {
-            const response = await getAllCategories();
-            setCategories(response.data);
-        } catch (error) {
-            console.error("Error fetching categories:", error);
-        }
-    };
-
-    const applyFilters = async () => {
-        try {
-            let categoryFilter;
-            if (selectedCategory == "") {
-                categoryFilter = undefined;
-            } else {
-                categoryFilter = Number(selectedCategory);
-            }
-            let completionFilter;
-            if (selectedCompletion == "") {
-                completionFilter = undefined;
-            } else {
-                completionFilter = selectedCompletion == "true";
-            }
-            const filteredTasks = await getTasksWithFilters(categoryFilter, completionFilter);
-            setTasks(filteredTasks.data);
-        } catch (error) {
-            console.error("Error filtering tasks:", error);
-        }
-    };
-    
+    }   
 
     const handleEdit = (task: Task) => {
         setEditingTaskId(task.id || null);
         setEditedTask({ ...task });
-        loadCategories();
-        loadTasks();
+        loadTasksFiltered();
     };
 
     const handleCancel = () => {
         setEditingTaskId(null);
         setEditedTask(null);
-        loadTasks();
+        loadTasksFiltered();
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         if (editedTask) {
             const { name, value, type } = e.target;
-            // Controlla se l'input è un checkbox per poter usare checked
             const fieldValue = type == "checkbox" ? (e.target as HTMLInputElement).checked : value;
             setEditedTask({
                 ...editedTask,
@@ -81,7 +74,6 @@ const TaskList = () => {
             });
         }
     };
-    
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         if (editedTask) {
@@ -98,7 +90,7 @@ const TaskList = () => {
                 alert("Task updated successfully!");
                 setEditingTaskId(null);
                 setEditedTask(null);
-                loadTasks();
+                loadTasksFiltered();
             } catch (error) {
                 console.error("Error updating task:", error);
             }
@@ -110,27 +102,35 @@ const TaskList = () => {
             try {
                 await deleteTask(id);
                 alert("Task deleted successfully!");
-                loadTasks();
+                loadTasksFiltered();
             } catch (error) {
                 console.error("Error deleting task:", error);
             }
         }
     };
 
+    const categoryFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedCategory(e.target.value === "" ? "" : Number(e.target.value));
+    }
+
+    const completedFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedCompletion(e.target.value);
+    }
+
     return (
         <div className="container mt-4">
             <h2 className="mb-4">Tasks</h2>
-            <TaskForm onTaskAdded={loadTasks} />
+            <TaskForm onTaskAdded={loadTasksFiltered} />
             {/*Filtri*/}
             <div className="filters mb-4 mt-4">
                 <div className="row g-3">
                     <div className="col-md-6">
-                        <label htmlFor="filterCategory" className="form-label">Filter by Category</label>
+                        <label htmlFor="filterCategory" className="form-label">Filter by category</label>
                         <select
                             id="filterCategory"
                             className="form-select"
                             value={selectedCategory}
-                            onChange={(e) => setSelectedCategory(e.target.value === "" ? "" : Number(e.target.value))}>
+                            onChange={(e) => categoryFilterChange(e)}>
                             <option value="">All categories</option>
                             {categories.map((category) => (
                                 <option key={category.id} value={category.id}>
@@ -145,17 +145,16 @@ const TaskList = () => {
                             id="filterCompletion"
                             className="form-select"
                             value={selectedCompletion}
-                            onChange={(e) => setSelectedCompletion(e.target.value)}>
+                            onChange={(e) => completedFilterChange(e)}>
                             <option value="">All tasks</option>
                             <option value="true">Completed</option>
                             <option value="false">Not completed</option>
                         </select>
                     </div>
                 </div>
-                <button className="btn btn-primary mt-4" onClick={applyFilters}>Apply filters</button>
             </div>
             <div className="table-container">
-                <table className="table table-striped">
+                <table className="table table-striped mt-3">
                     <thead>
                         <tr>
                             <th>Id</th>

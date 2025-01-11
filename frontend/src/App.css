@@ -40,12 +40,9 @@ body {
 }
 
 .table-container {
-  max-height: 400px;
-  overflow-y: auto;
+  height: 100%;
+  width: 100%;
   background: #fff;
-  padding: 10px;
-  border-radius: 5px;
-  margin-top: 50px;
 }
 
 
