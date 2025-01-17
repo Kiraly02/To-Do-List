@@ -6,7 +6,7 @@ interface CategoryFormProps {
     onCategoryAdded: () => void;
 }
 
-function CategoryForm({ onCategoryAdded }: CategoryFormProps) {
+const CategoryForm = ({ onCategoryAdded }: CategoryFormProps) => {
     const [newCategory, setNewCategory] = useState<Category>({
         name: "",
     });
@@ -19,7 +19,7 @@ function CategoryForm({ onCategoryAdded }: CategoryFormProps) {
             setNewCategory({
                 name: "",
             });
-            onCategoryAdded(); // Richiama la callback per aggiornare le categorie
+            onCategoryAdded();
         } catch (error) {
             console.error("Error on category save:", error);
         }

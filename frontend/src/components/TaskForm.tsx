@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getAllCategories } from "../services/categoryService";
 import { addTask } from "../services/taskService";
 import { Task, Category } from "../types/types";
+import axios from "axios";
 
 interface TaskFormProps {
     onTaskAdded: () => void;
@@ -18,17 +19,22 @@ const TaskForm = ({ onTaskAdded }: TaskFormProps) =>  {
     });
 
     useEffect(() => {
-        loadAllCategories();
+        const loadCategories = async () => {
+            const controller = new AbortController();
+            try {
+                const response = await getAllCategories(controller.signal);
+                setCategories(response.data);
+            } catch (error) {
+                if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") {
+                    console.log("Request cancelled");
+                } else {
+                    console.error("Error on fetching categories:", error);
+                }
+            }
+            return () => controller.abort();
+        };
+        loadCategories();
     }, []);
-
-    const loadAllCategories = async () => {
-        try {
-            const response = await getAllCategories();
-            setCategories(response.data);
-        } catch (error) {
-            console.error("Error fetching categories:", error);
-        }
-    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -52,7 +58,7 @@ const TaskForm = ({ onTaskAdded }: TaskFormProps) =>  {
             });
             onTaskAdded();
         } catch (error) {
-            console.error("Error adding task:", error);
+            console.error("Error on adding task:", error);
         }
     };
 

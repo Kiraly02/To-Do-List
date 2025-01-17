@@ -3,6 +3,7 @@ import { Task, Category } from "../types/types";
 import { editTask, deleteTask, getTasksWithFilters } from "../services/taskService";
 import { getAllCategories } from "../services/categoryService";
 import TaskForm from "./TaskForm";
+import axios from "axios";
 
 const TaskList = () => {
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -13,33 +14,43 @@ const TaskList = () => {
     const [selectedCompletion, setSelectedCompletion] = useState<string>("");
 
     useEffect(() => {
+        const controller = new AbortController();
         const applyFilters = async () => {
             try {
                 const categoryFilter = selectedCategory === "" ? undefined : Number(selectedCategory);
                 const completionFilter = selectedCompletion === "" ? undefined : selectedCompletion === "true";
     
-                const filteredTasks = await getTasksWithFilters(categoryFilter, completionFilter);
-                setTasks(filteredTasks.data);
+                const response = await getTasksWithFilters(categoryFilter, completionFilter, controller.signal);
+                setTasks(response.data);
             } catch (error) {
-                console.error("Error filtering tasks:", error);
+                if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") {
+                    console.log("Request cancelled");
+                } else {
+                    console.error("Error on fetching tasks:", error);
+                }
             }
+            return () => controller.abort();
         };
-    
         applyFilters();
-    }, [selectedCategory, selectedCompletion]);
+    }, [selectedCategory, selectedCompletion]);   
     
     useEffect(() => {
+        const controller = new AbortController();
         const loadCategories = async () => {
             try {
-                const response = await getAllCategories();
+                const response = await getAllCategories(controller.signal);
                 setCategories(response.data);
             } catch (error) {
-                console.error("Error fetching categories:", error);
+                if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") {
+                    console.log("Request cancelled");
+                } else {
+                    console.error("Error on fetching categories:", error);
+                }
             }
+            return () => controller.abort();
         };
-    
         loadCategories();
-    }, []);
+    }, []);  
 
     const loadTasksFiltered = async () => {
         try {
@@ -48,7 +59,7 @@ const TaskList = () => {
             const response = await getTasksWithFilters(categoryFilter, completionFilter);
             setTasks(response.data);
         } catch (error) {
-            console.error("Error fetching tasks:", error);
+            console.error("Error on fetching tasks:", error);
         }
     }   
 
@@ -92,7 +103,7 @@ const TaskList = () => {
                 setEditedTask(null);
                 loadTasksFiltered();
             } catch (error) {
-                console.error("Error updating task:", error);
+                console.error("Error on updating task:", error);
             }
         }
     };
@@ -104,7 +115,7 @@ const TaskList = () => {
                 alert("Task deleted successfully!");
                 loadTasksFiltered();
             } catch (error) {
-                console.error("Error deleting task:", error);
+                console.error("Error on deleting task:", error);
             }
         }
     };
